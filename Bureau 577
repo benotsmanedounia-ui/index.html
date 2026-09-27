@@ -1,0 +1,1794 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>LE BUREAU 577</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bleu-nuit:#4a2140;
+    --bleu-fonce:#60294f;
+    --bleu-pastel:#f2b8d4;
+    --bleu-pastel-clair:#fbdcec;
+    --bleu-pastel-tres-clair:#fff4fa;
+    --blanc:#fffaf9;
+    --or:#7fae8e;
+    --or-clair:#c3e4cf;
+    --or-fonce:#4c7a5c;
+    --encre:#34212f;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    height:100%;
+    margin:0;
+    background:
+      radial-gradient(circle at 50% -10%, var(--bleu-pastel-clair) 0%, var(--bleu-pastel) 45%, var(--bleu-nuit) 100%);
+    font-family:'VT323', monospace;
+    color:var(--encre);
+    overflow:hidden;
+    -webkit-tap-highlight-color: transparent;
+    user-select:none;
+  }
+  #stage{
+    position:fixed; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    padding: 14px;
+  }
+  #console-shell{
+    position:relative;
+    width:min(96vw, 640px);
+    background: linear-gradient(160deg, var(--bleu-pastel-clair) 0%, var(--bleu-pastel) 55%, #a9678f 100%);
+    border-radius: 22px;
+    padding: 16px 16px 22px;
+    box-shadow:
+      0 2px 0 rgba(255,255,255,0.6) inset,
+      0 -6px 18px rgba(20,30,60,0.25) inset,
+      0 18px 40px rgba(10,15,35,0.45);
+    border: 2px solid rgba(255,255,255,0.5);
+  }
+  #brand-row{
+    display:flex; align-items:baseline; justify-content:space-between;
+    padding: 2px 8px 10px;
+  }
+  #brand{
+    font-family:'Press Start 2P', monospace;
+    font-size: clamp(11px, 2.6vw, 15px);
+    color: var(--bleu-nuit);
+    letter-spacing: 1px;
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.5);
+  }
+  #brand span{ color: var(--or-fonce); }
+  #hall-icons{ display:flex; gap:10px; }
+  .chip-btn{
+    width:30px; height:30px; border-radius:50%;
+    background: linear-gradient(160deg,#fff, var(--bleu-pastel-clair));
+    border: 2px solid var(--or);
+    display:flex; align-items:center; justify-content:center;
+    font-size:14px; cursor:pointer;
+    box-shadow: 0 2px 3px rgba(20,30,60,0.25);
+  }
+  .chip-btn:active{ transform: translateY(1px); }
+
+  #screen-bezel{
+    position:relative;
+    background: var(--bleu-nuit);
+    border-radius: 12px;
+    padding: 8px;
+    box-shadow: 0 0 0 3px var(--or), inset 0 0 24px rgba(0,0,0,0.6);
+  }
+  #screen-inner{
+    position:relative;
+    width:100%;
+    aspect-ratio: 3 / 2;
+    background:#000;
+    border-radius: 6px;
+    overflow:hidden;
+  }
+  #game-container{ position:absolute; inset:0; }
+  #game-container canvas{ width:100% !important; height:100% !important; display:block; image-rendering: pixelated; }
+
+  #scanline-fx{
+    position:absolute; inset:0; pointer-events:none;
+    background:
+      repeating-linear-gradient(rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,0.08) 3px),
+      radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(20,10,20,0.35) 100%);
+    mix-blend-mode: multiply;
+    opacity:.55;
+  }
+  #power-flicker{
+    position:absolute; inset:0; background:#fff; pointer-events:none;
+    animation: flicker 0.7s ease-out forwards;
+  }
+  @keyframes flicker{
+    0%{opacity:1;} 15%{opacity:.1;} 25%{opacity:.7;} 40%{opacity:0;} 100%{opacity:0;}
+  }
+
+  /* ---- progress badge ---- */
+  #progress-badge{
+    position:absolute; top:8px; right:8px; z-index:20;
+    background: rgba(22,33,62,0.75);
+    border:1px solid var(--or);
+    color: var(--or-clair);
+    font-family:'Press Start 2P', monospace;
+    font-size: 9px;
+    padding:5px 7px;
+    border-radius: 6px;
+    letter-spacing:1px;
+    pointer-events:none;
+  }
+
+  /* ---- interact hint bubble ---- */
+  #interact-hint{
+    position:absolute; z-index:21; transform:translate(-50%,-100%);
+    display:none;
+    background: var(--blanc);
+    border:2px solid var(--or);
+    border-radius: 8px;
+    padding: 3px 8px;
+    font-family:'Press Start 2P', monospace;
+    font-size: 8px;
+    color: var(--bleu-nuit);
+    white-space:nowrap;
+    pointer-events:none;
+    animation: bob 1.1s ease-in-out infinite;
+  }
+  @keyframes bob{ 0%,100%{ margin-top:0px;} 50%{ margin-top:-4px;} }
+
+  /* ---- dialogue box ---- */
+  #dialogue-box{
+    position:absolute; left:4%; right:4%; bottom:4%; z-index:30;
+    background: linear-gradient(180deg, var(--bleu-pastel-tres-clair), var(--blanc));
+    border: 3px solid var(--or);
+    border-radius: 8px;
+    padding: 10px 14px 12px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.45);
+    cursor:pointer;
+  }
+  #dialogue-box.hidden{ display:none; }
+  #dialogue-name{
+    position:absolute; top:-14px; left:10px;
+    background: var(--or);
+    color: var(--bleu-nuit);
+    font-family:'Press Start 2P', monospace;
+    font-size:9px;
+    padding:4px 8px;
+    border-radius:5px;
+    border:2px solid var(--bleu-nuit);
+  }
+  #dialogue-text{
+    font-family:'VT323', monospace;
+    font-size: clamp(18px, 4.2vw, 23px);
+    line-height:1.55;
+    letter-spacing: 0.4px;
+    color: var(--encre);
+    font-weight: 600;
+    min-height: 3.1em;
+  }
+  #dialogue-cont{
+    position:absolute; right:12px; bottom:8px;
+    color: var(--or-fonce);
+    font-size:14px;
+    visibility:hidden;
+  }
+
+  /* ---- controls ---- */
+  #controls{
+    position:absolute; inset:0; z-index:15; pointer-events:none;
+  }
+  #dpad{
+    position:absolute; left:14px; bottom:14px;
+    width:104px; height:104px;
+    pointer-events:auto;
+    touch-action:none;
+  }
+  .dpad-btn{
+    position:absolute; width:36px; height:36px;
+    background: linear-gradient(160deg,#7a3f66,#4a2140);
+    border:2px solid rgba(255,255,255,0.35);
+    box-shadow: 0 3px 0 rgba(0,0,0,0.4);
+    display:flex; align-items:center; justify-content:center;
+    color:#fbdcec; font-size:14px;
+    touch-action:none; -webkit-touch-callout:none;
+    -webkit-user-select:none; user-select:none;
+  }
+  .dpad-btn:active{ background: linear-gradient(160deg,#4a2140,#34142c); transform: translateY(1px);}
+  #dpad-up{ left:34px; top:0; border-radius:6px 6px 0 0;}
+  #dpad-down{ left:34px; top:68px; border-radius:0 0 6px 6px;}
+  #dpad-left{ left:0; top:34px; border-radius:6px 0 0 6px;}
+  #dpad-right{ left:68px; top:34px; border-radius:0 6px 6px 0;}
+  #dpad-mid{ left:34px; top:34px; background:#34142c; border:none; box-shadow:none;}
+
+  #ab-buttons{
+    position:absolute; right:16px; bottom:20px;
+    display:flex; align-items:flex-end; gap:10px;
+    pointer-events:auto;
+    touch-action:none;
+  }
+  .round-btn{
+    width:50px; height:50px; border-radius:50%;
+    font-family:'Press Start 2P', monospace;
+    font-size:15px;
+    display:flex; align-items:center; justify-content:center;
+    color: var(--bleu-nuit);
+    background: radial-gradient(circle at 35% 30%, #fff, var(--or-clair) 60%, var(--or) 100%);
+    border:2px solid var(--or-fonce);
+    box-shadow: 0 4px 0 rgba(0,0,0,0.35);
+    touch-action:none; -webkit-touch-callout:none;
+    -webkit-user-select:none; user-select:none;
+  }
+  .round-btn:active{ transform: translateY(2px); box-shadow:0 2px 0 rgba(0,0,0,0.35); }
+  #btn-b{ margin-bottom:14px; width:42px; height:42px; font-size:13px; opacity:.9;}
+
+  /* ---- toast ---- */
+  #toast{
+    position:absolute; top:44px; left:50%; transform:translate(-50%,-20px);
+    z-index:40; opacity:0; pointer-events:none;
+    background: linear-gradient(180deg,#fffef8,#f1e6c8);
+    border:2px solid var(--or-fonce);
+    color: var(--bleu-nuit);
+    font-family:'Press Start 2P', monospace;
+    font-size:9px;
+    padding:8px 12px;
+    border-radius:6px;
+    text-align:center;
+    max-width: 80%;
+    transition: transform .35s ease, opacity .35s ease;
+    box-shadow:0 6px 14px rgba(0,0,0,0.35);
+  }
+  #toast.show{ opacity:1; transform:translate(-50%,0); }
+
+  /* ---- pause menu ---- */
+  #pause-panel, #feedback-panel{
+    position:absolute; inset:0; z-index:50;
+    background: rgba(15,20,40,0.72);
+    display:none; align-items:center; justify-content:center;
+    padding: 20px;
+  }
+  #pause-panel.show, #feedback-panel.show{ display:flex; }
+  .panel-card{
+    background: linear-gradient(180deg, var(--bleu-pastel-tres-clair), var(--blanc));
+    border:3px solid var(--or);
+    border-radius: 10px;
+    padding: 18px;
+    width:100%; max-width:340px;
+    text-align:center;
+  }
+  .panel-card h3{
+    font-family:'Press Start 2P', monospace;
+    font-size: 12px;
+    color: var(--bleu-nuit);
+    margin: 0 0 14px;
+    line-height:1.6;
+  }
+  .menu-btn{
+    display:block; width:100%;
+    font-family:'VT323', monospace; font-size:18px;
+    background: var(--bleu-nuit); color: var(--blanc);
+    border:2px solid var(--or); border-radius:6px;
+    padding:10px; margin-bottom:10px; cursor:pointer;
+  }
+  .menu-btn.secondary{ background:transparent; color:var(--bleu-nuit); }
+  textarea#fb-text{
+    width:100%; min-height:80px; font-family:'VT323',monospace; font-size:16px;
+    border:2px solid var(--or); border-radius:6px; padding:8px; resize:vertical;
+  }
+  #fb-stars{ font-size:26px; letter-spacing:4px; margin:8px 0; cursor:pointer; }
+  #fb-stars span{ opacity:.35; }
+  #fb-stars span.active{ opacity:1; }
+
+  /* ---- ending panel ---- */
+  #ending-panel{
+    position:absolute; inset:0; z-index:45;
+    display:none; align-items:center; justify-content:center;
+    background: rgba(10,16,34,0.55);
+    padding: 16px;
+  }
+  #ending-panel.show{ display:flex; }
+  #ending-card{
+    background: linear-gradient(180deg, #fffef9, var(--bleu-pastel-tres-clair));
+    border:3px solid var(--or);
+    border-radius:12px;
+    padding: 22px 18px;
+    max-width: 360px;
+    width:100%;
+    text-align:center;
+    box-shadow:0 10px 30px rgba(0,0,0,0.4);
+  }
+  #ending-card h2{
+    font-family:'Press Start 2P', monospace;
+    font-size:13px; color:var(--bleu-nuit); line-height:1.8; margin:0 0 12px;
+  }
+  #ending-card p{ font-size:18px; line-height:1.4; margin:0 0 16px; color:var(--encre);}
+  .cta-btn{
+    display:block; width:100%;
+    font-family:'VT323', monospace; font-size:19px;
+    background: linear-gradient(180deg,#233564, var(--bleu-nuit));
+    color: var(--or-clair);
+    border:2px solid var(--or);
+    border-radius:8px;
+    padding:12px; margin-bottom:10px;
+    text-decoration:none; display:flex; align-items:center; justify-content:center; gap:8px;
+    cursor:pointer;
+  }
+  .cta-btn:active{ transform: translateY(1px); }
+
+  /* ---- fiche de personnage (révélation façon RPG) ---- */
+  #cv-panel{
+    position:absolute; inset:0; z-index:60;
+    display:none; align-items:center; justify-content:center;
+    background: rgba(10,10,20,0.78);
+    padding: 14px;
+  }
+  #cv-panel.show{ display:flex; }
+  #cv-card{
+    background: linear-gradient(165deg, #2c1622 0%, #4a2140 55%, #60294f 100%);
+    border:3px solid var(--or);
+    border-radius:14px;
+    padding: 18px 16px 16px;
+    max-width: 380px;
+    width:100%;
+    max-height: 92%;
+    overflow-y:auto;
+    box-shadow: 0 0 0 4px rgba(127,174,142,0.25), 0 14px 40px rgba(0,0,0,0.55);
+    color: var(--blanc);
+    opacity:0; transform:scale(0.9);
+    transition: opacity .35s ease, transform .35s ease;
+  }
+  #cv-panel.show #cv-card{ opacity:1; transform:scale(1); }
+  #cv-card h2{
+    font-family:'Press Start 2P', monospace; font-size:12px;
+    text-align:center; color:#c3e4cf; line-height:1.7; margin:0 0 4px;
+    text-shadow:0 0 8px rgba(127,174,142,0.6);
+  }
+  #cv-card .cv-sub{
+    text-align:center; font-size:15px; color:#f2b8d4; margin:0 0 14px;
+  }
+  .cv-stat{
+    margin-bottom:10px; opacity:0; transform:translateX(-14px);
+    transition: opacity .4s ease, transform .4s ease;
+  }
+  .cv-stat.on{ opacity:1; transform:translateX(0); }
+  .cv-stat-label{
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-family:'VT323', monospace; font-size:16px; margin-bottom:3px;
+  }
+  .cv-stat-label span:last-child{ color:#c3e4cf; font-size:13px; }
+  .cv-bar-track{
+    height:10px; border-radius:5px; background:rgba(255,255,255,0.12);
+    border:1px solid rgba(255,255,255,0.25); overflow:hidden;
+  }
+  .cv-bar-fill{
+    height:100%; width:0%; border-radius:5px;
+    background: linear-gradient(90deg, #7fae8e, #c3e4cf);
+    transition: width 1s cubic-bezier(.2,.9,.3,1);
+    box-shadow: 0 0 8px rgba(127,174,142,0.7);
+  }
+  #cv-badges{
+    display:flex; flex-wrap:wrap; gap:6px; justify-content:center;
+    margin: 12px 0 6px;
+  }
+  .cv-badge{
+    font-family:'Press Start 2P', monospace; font-size:8px;
+    background: rgba(255,255,255,0.08);
+    border:2px solid #c9a24b; color:#fdeef7;
+    border-radius:8px; padding:6px 8px;
+    display:flex; align-items:center; gap:5px;
+    opacity:0; transform: scale(0.4) rotate(-8deg);
+    transition: opacity .35s ease, transform .35s cubic-bezier(.3,1.6,.5,1);
+  }
+  .cv-badge.on{ opacity:1; transform: scale(1) rotate(0deg); }
+  #cv-quote{
+    text-align:center; font-size:17px; line-height:1.4; color:#fbdcec;
+    margin: 12px 0 14px; opacity:0; transition: opacity .6s ease;
+    font-style: italic;
+  }
+  #cv-quote.on{ opacity:1; }
+  #cv-panel .cta-btn{ margin-bottom:8px; }
+  #cv-pdf-link{
+    display:block; text-align:center; font-family:'VT323',monospace;
+    font-size:14px; color: rgba(255,255,255,0.55); text-decoration:underline;
+    margin-top:4px; opacity:0; transition: opacity .6s ease;
+  }
+  #cv-pdf-link.on{ opacity:1; }
+  .contact-info-block{
+    margin-top:12px; padding:10px 12px; border-radius:10px;
+    background: rgba(255,255,255,0.12); border:1px dashed rgba(255,255,255,0.4);
+    font-family:'VT323',monospace; font-size:16px; line-height:1.5;
+    text-align:center; color:#fffaf9; user-select:text;
+  }
+  .contact-info-block .ci-label{ opacity:0.75; font-size:13px; letter-spacing:0.5px; }
+  .contact-info-block .ci-value{ font-size:18px; font-weight:bold; }
+  .cv-sparkle{
+    position:absolute; pointer-events:none; font-size:16px;
+    animation: cvSparkle 900ms ease-out forwards;
+  }
+  @keyframes cvSparkle{
+    0%{ transform:translateY(0) scale(0.4); opacity:1; }
+    100%{ transform:translateY(-40px) scale(1.1); opacity:0; }
+  }
+
+  #footer-note{
+    text-align:center; font-size:12px; color: rgba(20,30,60,0.55);
+    margin-top:8px; font-family:'VT323',monospace;
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="console-shell">
+    <div id="brand-row">
+      <div id="brand">LE <span>BUREAU</span> 577</div>
+      <div id="hall-icons">
+        <div class="chip-btn" id="btn-mute" title="Son">🔊</div>
+        <div class="chip-btn" id="btn-pause" title="Menu">☰</div>
+      </div>
+    </div>
+    <div id="screen-bezel">
+      <div id="screen-inner">
+        <div id="game-container"></div>
+        <div id="scanline-fx"></div>
+        <div id="power-flicker"></div>
+
+        <div id="progress-badge">0 / 3 NIVEAUX</div>
+        <div id="interact-hint">A</div>
+
+        <div id="dialogue-box" class="hidden">
+          <div id="dialogue-name">—</div>
+          <div id="dialogue-text"></div>
+          <div id="dialogue-cont">▼</div>
+        </div>
+
+        <div id="controls">
+          <div id="dpad">
+            <div class="dpad-btn" id="dpad-up">▲</div>
+            <div class="dpad-btn" id="dpad-down">▼</div>
+            <div class="dpad-btn" id="dpad-left">◀</div>
+            <div class="dpad-btn" id="dpad-right">▶</div>
+            <div class="dpad-btn" id="dpad-mid"></div>
+          </div>
+          <div id="ab-buttons">
+            <div class="round-btn" id="btn-b">B</div>
+            <div class="round-btn" id="btn-a">A</div>
+          </div>
+        </div>
+
+        <div id="toast"></div>
+
+        <div id="pause-panel">
+          <div class="panel-card">
+            <h3>MENU</h3>
+            <div class="menu-btn" id="pause-resume">Reprendre</div>
+            <div class="menu-btn" id="pause-hub">Retour au Hall principal</div>
+            <div class="menu-btn secondary" id="pause-restart">Recommencer depuis le début</div>
+          </div>
+        </div>
+
+        <div id="feedback-panel">
+          <div class="panel-card">
+            <h3>UNE QUESTION ?<br>UN AVIS ?</h3>
+            <div id="fb-stars">
+              <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
+            </div>
+            <textarea id="fb-text" placeholder="Avez-vous des questions ? Qu'avez-vous pensé de cette interface ?"></textarea>
+            <div class="menu-btn" id="fb-send" style="margin-top:10px;">Envoyer par e-mail</div>
+            <div class="menu-btn secondary" id="fb-cancel">Annuler</div>
+          </div>
+        </div>
+
+        <div id="ending-panel">
+          <div id="ending-card">
+            <h2>MERCI DE VOTRE VISITE</h2>
+            <p id="ending-text">Ce Bureau 577 n'était pas un CV. C'était une invitation à me découvrir autrement — pour un stage qui compte vraiment pour moi.</p>
+            <div class="cta-btn" id="cta-cv">🎮 Débloquer ma fiche de personnage</div>
+            <div class="cta-btn" id="cta-contact">✉️ Me contacter</div>
+            <div class="cta-btn" id="cta-feedback">💬 Vos questions / votre avis</div>
+            <div id="contact-info-block"></div>
+          </div>
+        </div>
+
+        <div id="cv-panel">
+          <div id="cv-card">
+            <h2>✦ FICHE DÉBLOQUÉE ✦</h2>
+            <div class="cv-sub">Dounia — Candidate, Bureau 577</div>
+
+            <div class="cv-stat" data-w="96"><div class="cv-stat-label"><span>🎤 Éloquence</span><span>96</span></div><div class="cv-bar-track"><div class="cv-bar-fill"></div></div></div>
+            <div class="cv-stat" data-w="92"><div class="cv-stat-label"><span>🌍 Langues (EN / AR)</span><span>92</span></div><div class="cv-bar-track"><div class="cv-bar-fill"></div></div></div>
+            <div class="cv-stat" data-w="90"><div class="cv-stat-label"><span>🤝 Leadership associatif</span><span>90</span></div><div class="cv-bar-track"><div class="cv-bar-fill"></div></div></div>
+            <div class="cv-stat" data-w="88"><div class="cv-stat-label"><span>📣 Communication</span><span>88</span></div><div class="cv-bar-track"><div class="cv-bar-fill"></div></div></div>
+            <div class="cv-stat" data-w="85"><div class="cv-stat-label"><span>🛠️ Polyvalence terrain</span><span>85</span></div><div class="cv-bar-track"><div class="cv-bar-fill"></div></div></div>
+
+            <div id="cv-badges">
+              <div class="cv-badge">🏅 3× 1er prix CNRD</div>
+              <div class="cv-badge">🏆 3e national Batissiel</div>
+              <div class="cv-badge">🎓 Licence LEA angl.-arabe</div>
+              <div class="cv-badge">👑 Présidente d'association</div>
+              <div class="cv-badge">🌐 Vocation Moyen-Orient</div>
+            </div>
+
+            <div id="cv-quote">« Ce que vous venez de voir dans ce Bureau, c'est ce qui ne tient pas sur une page A4. »</div>
+
+            <div class="cta-btn" id="cta-contact-2">✉️ Me contacter</div>
+            <div class="cta-btn secondary-cta" id="cv-close" style="background:transparent;border:2px solid rgba(255,255,255,0.4);">Revenir</div>
+            <a id="cv-pdf-link" href="#" target="_blank" rel="noopener">Voir mon CV complet en PDF</a>
+            <div id="contact-info-block-2"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <div id="footer-note">Flèches / D-Pad pour se déplacer · A pour interagir</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+<script>
+/* =========================================================================
+   LE BUREAU 577 — jeu narratif pixel-art (candidature vivante)
+   ========================================================================= */
+
+/* -------------------------------------------------------------------------
+   0. CONFIGURATION — à personnaliser
+   ------------------------------------------------------------------------- */
+const CONFIG = {
+  candidateName: "Dounia",
+  email: "benotsmanedounia@gmail.com",
+  phone: "06 41 45 08 41",
+  website: "https://example.com",    // TODO: URL du site personnel
+  cvUrl: "/_blob/9216e590b50493ba05622d703b533cae",
+};
+
+/* -------------------------------------------------------------------------
+   1. ÉTAT GLOBAL & UTILITAIRES D'INTERFACE (DOM)
+   ------------------------------------------------------------------------- */
+const els = {
+  dialogueBox: document.getElementById('dialogue-box'),
+  dialogueName: document.getElementById('dialogue-name'),
+  dialogueText: document.getElementById('dialogue-text'),
+  dialogueCont: document.getElementById('dialogue-cont'),
+  interactHint: document.getElementById('interact-hint'),
+  progressBadge: document.getElementById('progress-badge'),
+  toast: document.getElementById('toast'),
+  pausePanel: document.getElementById('pause-panel'),
+  feedbackPanel: document.getElementById('feedback-panel'),
+  endingPanel: document.getElementById('ending-panel'),
+  cvPanel: document.getElementById('cv-panel'),
+  screenInner: document.getElementById('screen-inner'),
+};
+
+const keys = { up:false, down:false, left:false, right:false };
+let dialogueActive = false;
+let muted = false;
+const gameEvents = new Phaser.Events.EventEmitter();
+
+/* ---- Audio rétro (généré, aucun fichier externe) ---- */
+let actx = null;
+function ensureAudio(){
+  if(!actx){
+    const AC = window.AudioContext || window.webkitAudioContext;
+    actx = new AC();
+  }
+  if(actx.state === 'suspended') actx.resume();
+  return actx;
+}
+function beep(freq, dur, type, vol, delay){
+  if(muted) return;
+  try{
+    const ctx = ensureAudio();
+    const t0 = ctx.currentTime + (delay||0);
+    const osc = ctx.createOscillator();
+    osc.type = type || 'square';
+    osc.frequency.value = freq;
+    const gain = ctx.createGain();
+    gain.gain.value = vol!=null?vol:0.05;
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t0);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + (dur||0.1) + 0.02);
+    osc.stop(t0 + (dur||0.1) + 0.05);
+  }catch(e){}
+}
+function playJingle(){
+  const notes = [523.25, 659.25, 784.0, 987.77, 1046.5];
+  notes.forEach((f,i)=>beep(f, 0.2, 'square', 0.045, i*0.14));
+}
+function playChime(){ beep(784,0.12,'triangle',0.09,0); beep(1046.5,0.16,'triangle',0.09,0.1); }
+function playBlip(){ beep(320+Math.random()*40, 0.02, 'sine', 0.016, 0); }
+function playDoor(){ beep(300,0.1,'triangle',0.06,0); beep(220,0.13,'triangle',0.05,0.07); }
+function playBadge(){ beep(660,0.1,'triangle',0.09,0); beep(880,0.12,'triangle',0.09,0.1); beep(1320,0.18,'triangle',0.09,0.2); }
+function playClick(){ beep(520,0.05,'triangle',0.08,0); }
+function playVictory(){
+  const notes = [523.25,659.25,783.99,1046.50,987.77,1046.50,1318.51];
+  const durs =  [0.14,0.14,0.14,0.22,0.14,0.14,0.42];
+  let t = 0;
+  notes.forEach((f,i)=>{ beep(f, durs[i], 'square', 0.11, t); beep(f/2, durs[i], 'sine', 0.06, t); t += durs[i]*0.85; });
+}
+function playOutro(){
+  const melody = [
+    [392.00,0.00],[493.88,0.22],[587.33,0.44],[783.99,0.66],
+    [659.25,0.98],[587.33,1.20],[523.25,1.42],[659.25,1.64],
+    [783.99,1.96],[987.77,2.22],[880.00,2.48],[1046.50,2.80]
+  ];
+  melody.forEach(([f,d])=> beep(f, 0.4, 'triangle', 0.09, d));
+  const bass = [196.00,246.94,196.00,164.81];
+  bass.forEach((f,i)=> beep(f, 0.95, 'sine', 0.045, i*0.72));
+}
+
+document.getElementById('btn-mute').addEventListener('click', ()=>{
+  muted = !muted;
+  document.getElementById('btn-mute').textContent = muted ? '🔇' : '🔊';
+  if(muted){ stopAmbient(); } else { ensureAudio(); playClick(); startAmbient(); }
+});
+
+/* ---- Musique d'ambiance en boucle : petite mélodie chiptune + basse,
+   avec un planificateur "look-ahead" pour un vrai tempo régulier ---- */
+const AMBIENT_BPM = 96;
+const AMBIENT_BEAT_SEC = 60 / AMBIENT_BPM;
+const AMBIENT_LOOP_BEATS = 8;
+const AMBIENT_MELODY = [
+  { beat:0, freq:523.25, dur:0.85 },
+  { beat:1, freq:659.25, dur:0.85 },
+  { beat:2, freq:784.00, dur:0.85 },
+  { beat:3, freq:659.25, dur:0.85 },
+  { beat:4, freq:587.33, dur:0.85 },
+  { beat:5, freq:698.46, dur:0.85 },
+  { beat:6, freq:880.00, dur:0.85 },
+  { beat:7, freq:698.46, dur:0.85 },
+];
+const AMBIENT_BASS = [
+  { beat:0, freq:261.63, dur:1.8 },
+  { beat:2, freq:220.00, dur:1.8 },
+  { beat:4, freq:293.66, dur:1.8 },
+  { beat:6, freq:349.23, dur:1.8 },
+];
+let ambientRunning = false;
+let ambientSchedulerId = null;
+let ambientNextTime = 0;
+let ambientBeatIndex = 0;
+function scheduleAmbientNotes(){
+  const ctx = ensureAudio();
+  while(ambientNextTime < ctx.currentTime + 0.22){
+    const b = ambientBeatIndex % AMBIENT_LOOP_BEATS;
+    const delay = Math.max(0, ambientNextTime - ctx.currentTime);
+    AMBIENT_MELODY.filter(n=> n.beat===b).forEach(n=>{
+      beep(n.freq, n.dur*AMBIENT_BEAT_SEC, 'square', 0.05, delay);
+    });
+    AMBIENT_BASS.filter(n=> n.beat===b).forEach(n=>{
+      beep(n.freq, n.dur*AMBIENT_BEAT_SEC, 'sine', 0.07, delay);
+    });
+    ambientNextTime += AMBIENT_BEAT_SEC;
+    ambientBeatIndex++;
+  }
+}
+function startAmbient(){
+  if(ambientRunning || muted) return;
+  ambientRunning = true;
+  const ctx = ensureAudio();
+  ambientNextTime = ctx.currentTime + 0.05;
+  ambientBeatIndex = 0;
+  scheduleAmbientNotes();
+  ambientSchedulerId = setInterval(()=>{ if(!muted) scheduleAmbientNotes(); }, 120);
+}
+function stopAmbient(){
+  ambientRunning = false;
+  clearInterval(ambientSchedulerId);
+  ambientSchedulerId = null;
+}
+/* Filet de sécurité : si l'audio n'a pas pu démarrer plus tôt (politique du
+   navigateur), la toute première interaction de l'utilisateur la déclenche. */
+function primeAmbientOnce(){
+  ensureAudio();
+  startAmbient();
+  window.removeEventListener('pointerdown', primeAmbientOnce);
+  window.removeEventListener('keydown', primeAmbientOnce);
+  window.removeEventListener('touchstart', primeAmbientOnce);
+}
+window.addEventListener('pointerdown', primeAmbientOnce, { once:true });
+window.addEventListener('keydown', primeAmbientOnce, { once:true });
+window.addEventListener('touchstart', primeAmbientOnce, { once:true });
+
+/* ---- Toast ---- */
+let toastTimer=null;
+function showToast(msg){
+  els.toast.textContent = msg;
+  els.toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> els.toast.classList.remove('show'), 2600);
+}
+
+/* ---- Dialogue système ---- */
+let dq = [];
+let curLine = '';
+let curCharIndex = 0;
+let typingTimer = null;
+let onDialogueDone = null;
+
+function openDialogue(speaker, lines, onDone){
+  dialogueActive = true;
+  onDialogueDone = onDone || null;
+  dq = lines.slice();
+  els.dialogueName.textContent = speaker;
+  els.dialogueBox.classList.remove('hidden');
+  nextLine();
+}
+function nextLine(){
+  if(dq.length === 0){ closeDialogue(); return; }
+  curLine = dq.shift();
+  curCharIndex = 0;
+  els.dialogueText.textContent = '';
+  els.dialogueCont.style.visibility = 'hidden';
+  clearInterval(typingTimer);
+  typingTimer = setInterval(()=>{
+    curCharIndex++;
+    els.dialogueText.textContent = curLine.slice(0, curCharIndex);
+    if(curCharIndex % 3 === 0) playBlip();
+    if(curCharIndex >= curLine.length){
+      clearInterval(typingTimer);
+      els.dialogueCont.style.visibility = 'visible';
+    }
+  }, 20);
+}
+function completeCurrentLine(){
+  clearInterval(typingTimer);
+  curCharIndex = curLine.length;
+  els.dialogueText.textContent = curLine;
+  els.dialogueCont.style.visibility = 'visible';
+}
+function advanceDialogue(){
+  if(curCharIndex < curLine.length){ completeCurrentLine(); }
+  else { nextLine(); }
+}
+function closeDialogue(){
+  dialogueActive = false;
+  els.dialogueBox.classList.add('hidden');
+  const cb = onDialogueDone; onDialogueDone = null;
+  if(cb) cb();
+}
+els.dialogueBox.addEventListener('click', advanceDialogue);
+
+/* ---- Boutons A / B + clavier ---- */
+function pressA(){
+  ensureAudio();
+  if(dialogueActive){ advanceDialogue(); }
+  else { gameEvents.emit('interact'); }
+}
+function pressB(){
+  if(dialogueActive){ completeCurrentLine(); }
+  else { gameEvents.emit('cancel'); }
+}
+document.getElementById('btn-a').addEventListener('pointerdown', (e)=>{ e.preventDefault(); pressA(); });
+document.getElementById('btn-b').addEventListener('pointerdown', (e)=>{ e.preventDefault(); pressB(); });
+document.querySelectorAll('#dpad, #ab-buttons, .chip-btn').forEach(el=>{
+  el.addEventListener('contextmenu', e=> e.preventDefault());
+});
+
+/* Réinitialise toutes les directions — filet de sécurité si un événement
+   tactile est "avalé" par le navigateur (menu contextuel, sélection...) */
+function releaseAllKeys(){
+  keys.up = false; keys.down = false; keys.left = false; keys.right = false;
+}
+window.addEventListener('blur', releaseAllKeys);
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) releaseAllKeys(); });
+window.addEventListener('pointerup', releaseAllKeys);
+window.addEventListener('pointercancel', releaseAllKeys);
+
+function bindHold(id, key){
+  const el = document.getElementById(id);
+  el.style.touchAction = 'none';
+  const on = (e)=>{
+    e.preventDefault();
+    ensureAudio(); playClick();
+    keys[key]=true;
+    try{ el.setPointerCapture(e.pointerId); }catch(err){}
+  };
+  const off = (e)=>{ if(e) e.preventDefault(); keys[key]=false; };
+  el.addEventListener('pointerdown', on);
+  el.addEventListener('pointerup', off);
+  el.addEventListener('pointerleave', off);
+  el.addEventListener('pointercancel', off);
+  el.addEventListener('lostpointercapture', off);
+  el.addEventListener('contextmenu', e=> e.preventDefault());
+}
+bindHold('dpad-up','up'); bindHold('dpad-down','down');
+bindHold('dpad-left','left'); bindHold('dpad-right','right');
+
+window.addEventListener('keydown', (e)=>{
+  const k = e.key;
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(k)) e.preventDefault();
+  if(k==='ArrowUp'||k==='w'||k==='W') keys.up = true;
+  if(k==='ArrowDown'||k==='s'||k==='S') keys.down = true;
+  if(k==='ArrowLeft'||k==='a'||k==='A') keys.left = true;
+  if(k==='ArrowRight'||k==='d'||k==='D') keys.right = true;
+  if(k===' '||k==='Enter'||k==='e'||k==='E') pressA();
+  if(k==='Escape') pressB();
+});
+window.addEventListener('keyup', (e)=>{
+  const k = e.key;
+  if(k==='ArrowUp'||k==='w'||k==='W') keys.up = false;
+  if(k==='ArrowDown'||k==='s'||k==='S') keys.down = false;
+  if(k==='ArrowLeft'||k==='a'||k==='A') keys.left = false;
+  if(k==='ArrowRight'||k==='d'||k==='D') keys.right = false;
+});
+
+/* ---- Menu pause ---- */
+document.getElementById('btn-pause').addEventListener('click', ()=>{
+  ensureAudio(); playClick();
+  els.pausePanel.classList.add('show');
+});
+document.getElementById('pause-resume').addEventListener('click', ()=>{ playClick(); els.pausePanel.classList.remove('show'); });
+document.getElementById('pause-hub').addEventListener('click', ()=>{
+  playClick();
+  els.pausePanel.classList.remove('show');
+  if(window.__game){ window.__game.scene.stop('Room'); window.__game.scene.start('Hub'); }
+});
+document.getElementById('pause-restart').addEventListener('click', ()=>{ playClick(); location.reload(); });
+
+/* ---- Panneau de fin ---- */
+let fbRating = 0;
+document.querySelectorAll('#fb-stars span').forEach(s=>{
+  s.addEventListener('click', ()=>{
+    playClick();
+    fbRating = parseInt(s.dataset.v,10);
+    document.querySelectorAll('#fb-stars span').forEach(x=>{
+      x.classList.toggle('active', parseInt(x.dataset.v,10) <= fbRating);
+    });
+  });
+});
+document.getElementById('cta-feedback').addEventListener('click', ()=>{
+  playClick();
+  els.feedbackPanel.classList.add('show');
+});
+document.getElementById('fb-cancel').addEventListener('click', ()=>{ playClick(); els.feedbackPanel.classList.remove('show'); });
+/* ---- Envoi réel par e-mail, sans serveur, via un relais tiers (FormSubmit) ----
+   FormSubmit reçoit la requête depuis le navigateur du visiteur et transfère le
+   message directement dans la boîte mail de CONFIG.email. La toute première fois
+   qu'un message part vers une adresse, FormSubmit envoie un mail de confirmation
+   à cette adresse (une seule fois) qu'il faut valider — ensuite, tout arrive
+   automatiquement, sans rien à refaire. */
+function sendMailRelay(fields){
+  return fetch(`https://formsubmit.co/ajax/${encodeURIComponent(CONFIG.email)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify(Object.assign({ _captcha:'false', _template:'table' }, fields))
+  }).then(r=> r.ok).catch(()=> false);
+}
+
+document.getElementById('fb-send').addEventListener('click', ()=>{
+  playClick();
+  const text = document.getElementById('fb-text').value.trim();
+  const stars = '★'.repeat(fbRating) + '☆'.repeat(5-fbRating);
+  sendMailRelay({
+    _subject: 'Avis — Le Bureau 577',
+    'Note': `${fbRating || '-'}/5 (${stars})`,
+    'Avis / question': text || '(aucun commentaire)'
+  });
+  els.feedbackPanel.classList.remove('show');
+  showToast('Merci ! Votre avis vient d\'être envoyé.');
+});
+
+/* Coordonnées affichées en clair (en plus de l'envoi automatique), pour que
+   le recruteur puisse toujours les recopier même si l'envoi ne passe pas. */
+function contactInfoHTML(){
+  return `<div class="ci-label">Vous pouvez aussi me contacter directement :</div>
+    <div class="ci-value">✉️ ${CONFIG.email}</div>
+    <div class="ci-value">📞 ${CONFIG.phone}</div>`;
+}
+function fillContactInfoBlocks(){
+  const a = document.getElementById('contact-info-block');
+  const b = document.getElementById('contact-info-block-2');
+  if(a){ a.className = 'contact-info-block'; a.innerHTML = contactInfoHTML(); }
+  if(b){ b.className = 'contact-info-block'; b.innerHTML = contactInfoHTML(); }
+}
+
+function showEndingPanel(){
+  document.getElementById('cv-pdf-link').href = CONFIG.cvUrl;
+  fillContactInfoBlocks();
+  els.endingPanel.classList.add('show');
+}
+
+/* ---- Contact : envoi réel par mail (relais) + copie de l'adresse en secours ---- */
+function doContact(){
+  playClick();
+  sendMailRelay({
+    _subject: 'Contact — Le Bureau 577',
+    'Message': "Un visiteur souhaite être recontacté après avoir terminé Le Bureau 577."
+  });
+  let copied = false;
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(CONFIG.email);
+      copied = true;
+    }
+  }catch(e){}
+  if(!copied){
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = CONFIG.email; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      copied = true;
+    }catch(e){}
+  }
+  showToast(`✉️ Message envoyé ! Mon adresse (${copied?'copiée':'ci-contre'}) : ${CONFIG.email}`);
+}
+document.getElementById('cta-contact').addEventListener('click', doContact);
+document.getElementById('cta-contact-2').addEventListener('click', doContact);
+
+/* ---- Fiche de personnage : révélation façon RPG (remplace le "téléchargement" du CV) ---- */
+function spawnSparkles(el, count){
+  const rect = el.getBoundingClientRect();
+  const cardRect = els.cvPanel.querySelector('#cv-card').getBoundingClientRect();
+  const icons = ['✦','✧','★','·'];
+  for(let i=0;i<count;i++){
+    const s = document.createElement('div');
+    s.className = 'cv-sparkle';
+    s.textContent = icons[Math.floor(Math.random()*icons.length)];
+    s.style.left = (rect.left - cardRect.left + rect.width*Math.random()) + 'px';
+    s.style.top = (rect.top - cardRect.top + rect.height*0.4) + 'px';
+    s.style.color = Math.random()>0.5 ? '#c3e4cf' : '#f2b8d4';
+    els.cvPanel.querySelector('#cv-card').appendChild(s);
+    setTimeout(()=> s.remove(), 950);
+  }
+}
+function showCvReveal(){
+  playClick();
+  fillContactInfoBlocks();
+  els.cvPanel.classList.add('show');
+  const stats = Array.from(document.querySelectorAll('.cv-stat'));
+  const badges = Array.from(document.querySelectorAll('.cv-badge'));
+  const quote = document.getElementById('cv-quote');
+  const pdfLink = document.getElementById('cv-pdf-link');
+
+  stats.forEach(s=>{ s.classList.remove('on'); s.querySelector('.cv-bar-fill').style.width = '0%'; });
+  badges.forEach(b=> b.classList.remove('on'));
+  quote.classList.remove('on');
+  pdfLink.classList.remove('on');
+
+  ensureAudio();
+  let t = 150;
+  stats.forEach((s, i)=>{
+    setTimeout(()=>{
+      s.classList.add('on');
+      s.querySelector('.cv-bar-fill').style.width = s.dataset.w + '%';
+      playBlip();
+    }, t);
+    t += 260;
+  });
+  t += 150;
+  badges.forEach((b, i)=>{
+    setTimeout(()=>{
+      b.classList.add('on');
+      playChime();
+      spawnSparkles(b, 4);
+    }, t);
+    t += 220;
+  });
+  t += 250;
+  setTimeout(()=>{
+    quote.classList.add('on');
+    pdfLink.classList.add('on');
+    playBadge();
+  }, t);
+}
+document.getElementById('cta-cv').addEventListener('click', showCvReveal);
+document.getElementById('cv-close').addEventListener('click', ()=>{
+  playClick();
+  els.cvPanel.classList.remove('show');
+});
+
+/* -------------------------------------------------------------------------
+   2. DONNÉES DU PARCOURS — salles & points d'intérêt
+   ------------------------------------------------------------------------- */
+const N = () => CONFIG.candidateName;
+
+const ROOMS = {
+  etudes: {
+    title: 'Niveau 1 — Études',
+    floorTint: 0xfbdcec,
+    intro: "Ici commence le chemin scolaire — du Brevet à la spécialisation en Relations Internationales.",
+    hotspots: [
+      { id:'brevet', x:100, y:150, icon:'cap', label:'Le Brevet', lines:[
+        "Tout commence ici, avec le Brevet des collèges.",
+        "Une étape modeste sur le papier, mais le premier examen où j'ai appris à me structurer — et à ne pas trembler devant une copie blanche."
+      ]},
+      { id:'resistance', x:240, y:150, icon:'medal', label:'Concours de la Résistance', lines:[
+        "Au collège, j'ai passé trois fois le Concours National de la Résistance et de la Déportation.",
+        "Trois années de suite, premier prix. La première fois, c'était une surprise. Les deux suivantes, une exigence que je me suis imposée à moi-même.",
+        "C'est là que j'ai appris la rigueur documentaire — et ma toute première école de l'éloquence, face à un jury."
+      ]},
+      { id:'bac', x:380, y:150, icon:'scroll', label:'Le Baccalauréat', lines:[
+        "Puis le Baccalauréat.",
+        "C'est à ce moment que j'ai compris que je voulais aller vers l'international : les langues, le monde, la façon dont les cultures se parlent — ou ne se parlent pas."
+      ]},
+      { id:'batissiel', x:170, y:234, icon:'trophy', label:'Concours Batissiel — 2018', lines:[
+        "En 2018, j'ai disputé la finale du concours Batissiel — au Parlement européen.",
+        "Je suis arrivée troisième au classement national. Me tenir dans cet hémicycle, devant un jury international, c'est là que j'ai su que je voulais faire de la politique, du journalisme, de l'engagement.",
+      ]},
+      { id:'licence', x:340, y:234, icon:'book', label:'Licence LEA angl.-arabe', lines:[
+        "Aujourd'hui, je suis en troisième année de Licence LEA anglais-arabe.",
+        "Un parcours exigeant : deux langues, deux façons de penser, un pont entre deux mondes que j'ai choisi de construire moi-même — avec la spécialisation Relations Internationales en ligne de mire."
+      ]},
+    ]
+  },
+  experience: {
+    title: 'Niveau 2 — Expérience',
+    floorTint: 0xf7dcee,
+    intro: "Un profil qui touche à tout : présidence associative, expériences de terrain et compétences transversales.",
+    hotspots: [
+      { id:'presidence', x:90, y:104, icon:'seal', label:"Présidente depuis le 16/11/2025", lines:[
+        "Depuis le 16 novembre 2025, je préside l'association Les Voix Libres.",
+        "Présider, ce n'est pas un titre : c'est porter la responsabilité de toute l'organisation, du premier au dernier détail."
+      ]},
+      { id:'equipe', x:240, y:104, icon:'handshake', label:"Gestion d'équipe", lines:[
+        "Je gère un bureau complet : trésorerie, secrétaire générale, cadreurs, monteurs.",
+        "Coordonner des profils si différents, c'est apprendre à déléguer sans jamais perdre le fil du projet collectif."
+      ]},
+      { id:'polyvalence', x:390, y:104, icon:'computer', label:'Compétences transversales', lines:[
+        "Je touche à tout, très concrètement : montage vidéo, Excel, quelques bases de code, les usages numériques et applications que maîtrisent les jeunes générations.",
+        "Cette polyvalence, c'est ce qui me permet de comprendre chaque maillon d'un projet, de l'idée jusqu'à sa mise en ligne."
+      ]},
+      { id:'communication', x:90, y:168, icon:'megaphone', label:'Communication', lines:[
+        "Je gère aussi toute la communication de l'association : réseaux sociaux, visuels, prise de parole publique.",
+        "Parler clairement, au bon moment, au bon public — un réflexe que j'ai construit sur le terrain."
+      ]},
+      { id:'langues', x:240, y:168, icon:'flag', label:'Langues', lines:[
+        "Français langue maternelle, anglais et arabe littéraire de niveau avancé, espagnol intermédiaire.",
+        "Ces langues ouvrent des portes que le français seul ne peut pas ouvrir — sur l'Europe, sur le Moyen-Orient, sur bien des terrains de dialogue."
+      ]},
+      { id:'animatrice', x:390, y:168, icon:'briefcase', label:'Animatrice petite enfance', lines:[
+        "Depuis septembre 2024 (et jusqu'en juillet 2026), je suis animatrice petite enfance à l'école maternelle Ferry.",
+        "J'y encadre les enfants, organise des activités éducatives et assure un accompagnement pédagogique, dans le respect de leur sécurité et de leur bien-être."
+      ]},
+      { id:'auxvie', x:90, y:222, icon:'briefcase', label:'Auxiliaire de vie', lines:[
+        "En juillet 2024, j'ai travaillé comme auxiliaire de vie chez O2.",
+        "Aide aux gestes du quotidien, entretien du cadre de vie, respect des besoins individuels et de la sécurité de chacun."
+      ]},
+      { id:'serveuse', x:240, y:222, icon:'briefcase', label:'Serveuse polyvalente', lines:[
+        "En septembre 2023, j'ai été serveuse polyvalente chez Krousty Sabaïdi.",
+        "Accueil et encaissement des clients, gestion de la caisse, mise en place et entretien de la salle — un rythme soutenu qui m'a appris l'efficacité."
+      ]},
+      { id:'interim', x:390, y:222, icon:'briefcase', label:"Missions d'intérim", lines:[
+        "J'ai aussi enchaîné plusieurs missions d'intérim de courte durée : vente chez H&M, téléprospection chez Coaxis, agent de production.",
+        "Des expériences différentes, mais un même réflexe : m'adapter vite et être opérationnelle tout de suite."
+      ]},
+    ]
+  },
+  projets: {
+    title: 'Niveau 3 — Concrétisation',
+    floorTint: 0xdcecdc,
+    intro: "Là où mes convictions prennent forme : l'association Les Voix Libres, à Pessac.",
+    hotspots: [
+      { id:'presentation', x:70, y:150, icon:'seal', label:'Les Voix Libres', lines:[
+        "Les Voix Libres, c'est mon association, basée à Pessac.",
+        "Elle s'organise autour de trois pôles : Média, Solidarité et Campus. Chacun porte une facette différente de ce qui me tient à cœur."
+      ]},
+      { id:'media', x:183, y:150, icon:'mic', label:'Pôle Média', lines:[
+        "Le pôle Média, c'est le cœur éditorial de l'association : nous interviewons des minorités, pour donner la parole à celles et ceux qu'on entend trop peu.",
+        "On y interviewe par exemple des femmes voilées, pour montrer qu'elles sont bien plus que le regard qu'on porte trop souvent sur elles.",
+        "Faire entendre des voix qu'on n'écoute pas assez, c'est déjà une forme d'engagement journalistique et citoyen."
+      ]},
+      { id:'solidarite', x:296, y:150, icon:'star', label:'Pôle Solidarité', lines:[
+        "Le pôle Solidarité nous emmène vers les EHPAD : nous y maquillons les résidents et passons du temps avec eux.",
+        "Mais pas seulement : nous menons aussi un projet avec un centre socioculturel, pour emmener des jeunes découvrir la fac.",
+        "L'idée, c'est de leur montrer qu'il existe plein de voies possibles — y compris pour celles et ceux qu'on ne voit pas souvent représentés à la télévision."
+      ]},
+      { id:'campus', x:410, y:150, icon:'calendar', label:'Pôle Campus', lines:[
+        "Le pôle Campus organise des distributions alimentaires, avec un réseau d'entraide construit auprès d'agriculteurs et de boulangeries pour récupérer leurs invendus.",
+        "Nous menons aussi des brunchs itinérants, de résidence en résidence, pour recueillir la parole de tous les étudiants."
+      ]},
+      { id:'eloquence', x:130, y:234, icon:'trophy', label:"Concours d'éloquence", lines:[
+        "En ce moment même, j'organise un concours d'éloquence : candidats, thèmes, jury, logistique — un projet que je mène de bout en bout, comme celui de l'association.",
+        "C'est aussi une manière de donner à d'autres l'occasion que j'ai eue : celle de monter sur une estrade et de se sentir légitime d'y être."
+      ]},
+      { id:'vocation', x:260, y:234, icon:'globe', label:'Ma vocation', lines:[
+        "Ce qui me fascine depuis toujours, c'est les relations et les conflits internationaux — en particulier au Moyen-Orient.",
+        "C'est ce qui me porte vers la politique et le journalisme : comprendre ces conflits en profondeur, et aider à les raconter avec justesse."
+      ]},
+      { id:'site', x:390, y:234, icon:'frame', label:'Mon site internet', lines:[
+        "Tout ce que vous venez de voir, mon site personnel le prolonge : projets, actualités, contact.",
+        "Je vous y emmène tout de suite."
+      ], onDone: ()=>{ window.open(CONFIG.website, '_blank'); } },
+    ]
+  },
+};
+const ROOM_ORDER = ['etudes','experience','projets'];
+
+/* progress tracking */
+const roomState = {};
+ROOM_ORDER.forEach(key=>{
+  roomState[key] = { total: ROOMS[key].hotspots.length, done: new Set() };
+});
+function isRoomComplete(key){ return roomState[key].done.size >= roomState[key].total; }
+function completedRoomsCount(){ return ROOM_ORDER.filter(isRoomComplete).length; }
+function updateProgressBadge(){
+  els.progressBadge.textContent = `${completedRoomsCount()} / ${ROOM_ORDER.length} NIVEAUX`;
+}
+function markHotspotDone(roomKey, hotspotId){
+  const wasComplete = isRoomComplete(roomKey);
+  roomState[roomKey].done.add(hotspotId);
+  updateProgressBadge();
+  if(!wasComplete && isRoomComplete(roomKey)){
+    playBadge();
+    showToast(`🏅 Salle complétée : ${ROOMS[roomKey].title}`);
+    if(completedRoomsCount() >= ROOM_ORDER.length){
+      setTimeout(()=> showToast('✦ Le Bureau du Président vous attend au Hall.'), 1400);
+    }
+  }
+}
+
+/* -------------------------------------------------------------------------
+   3. GÉNÉRATION DES TEXTURES (pixel-art procédural)
+   ------------------------------------------------------------------------- */
+function makePersonTexture(scene, key, palette, dir, frame){
+  const w=32, h=48;
+  if(scene.textures.exists(key)) return;
+  const tex = scene.textures.createCanvas(key, w, h);
+  const ctx = tex.getContext();
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0,0,w,h);
+  const cx = w/2;
+  // ombre
+  ctx.fillStyle = 'rgba(15,20,40,0.28)';
+  ctx.beginPath(); ctx.ellipse(cx, h-4, 9, 3, 0, 0, Math.PI*2); ctx.fill();
+  // jambes
+  const legOff = frame===1 ? 2 : 0;
+  ctx.fillStyle = palette.legs;
+  ctx.fillRect(cx-7, h-17, 6, 12-legOff);
+  ctx.fillRect(cx+1, h-17+legOff, 6, 12-legOff);
+  // bras
+  ctx.fillStyle = palette.body;
+  ctx.fillRect(cx-13, h-31, 4, 14);
+  ctx.fillRect(cx+9, h-31, 4, 14);
+  // corps (tenue sobre)
+  ctx.fillStyle = palette.body;
+  ctx.fillRect(cx-10, h-33, 20, 18);
+  // ceinture fine (détail sobre, sans cravate)
+  ctx.fillStyle = palette.accent;
+  ctx.fillRect(cx-10, h-19, 20, 2);
+  // cheveux longs — mèches derrière les épaules (dessinées avant la tête)
+  ctx.fillStyle = palette.hair;
+  ctx.fillRect(cx-10, h-46, 3, 19);
+  ctx.fillRect(cx+7, h-46, 3, 19);
+  // tete
+  ctx.fillStyle = palette.skin;
+  ctx.fillRect(cx-8, h-47, 16, 16);
+  // cheveux (mèche du dessus + visage)
+  ctx.fillStyle = palette.hair;
+  if(dir==='back'){
+    ctx.fillRect(cx-10, h-48, 20, 21);
+  } else {
+    ctx.fillRect(cx-9, h-48, 18, 7);
+    if(dir==='left'){ ctx.fillRect(cx-9, h-47, 5, 15); ctx.fillStyle=palette.eye; ctx.fillRect(cx-6,h-40,3,3); }
+    else if(dir==='right'){ ctx.fillRect(cx+4, h-47, 5, 15); ctx.fillStyle=palette.eye; ctx.fillRect(cx+3,h-40,3,3); }
+    else {
+      ctx.fillStyle=palette.eye;
+      ctx.fillRect(cx-6,h-41,3,3);
+      ctx.fillRect(cx+3,h-41,3,3);
+    }
+  }
+  tex.refresh();
+}
+
+function drawIcon(ctx, type, c1, c2){
+  ctx.imageSmoothingEnabled = false;
+  switch(type){
+    case 'book':
+      ctx.fillStyle=c1; ctx.fillRect(2,4,16,14);
+      ctx.fillStyle=c2; ctx.fillRect(2,4,16,3);
+      ctx.fillStyle='#fff'; ctx.fillRect(4,9,12,1); ctx.fillRect(4,12,12,1);
+      break;
+    case 'cap':
+      ctx.fillStyle=c1; ctx.beginPath(); ctx.moveTo(10,3); ctx.lineTo(19,8); ctx.lineTo(10,13); ctx.lineTo(1,8); ctx.closePath(); ctx.fill();
+      ctx.fillStyle=c2; ctx.fillRect(8,12,4,6);
+      ctx.fillStyle=c1; ctx.fillRect(16,8,2,7);
+      break;
+    case 'scroll':
+      ctx.fillStyle=c1; ctx.fillRect(3,5,14,11);
+      ctx.fillStyle=c2; ctx.fillRect(1,4,3,13); ctx.fillRect(16,4,3,13);
+      break;
+    case 'globe':
+      ctx.fillStyle=c1; ctx.beginPath(); ctx.arc(10,10,8,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle=c2; ctx.lineWidth=1.4;
+      ctx.beginPath(); ctx.ellipse(10,10,8,3.5,0,0,Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(10,2); ctx.lineTo(10,18); ctx.stroke();
+      break;
+    case 'flag':
+      ctx.fillStyle='#4c7a5c'; ctx.fillRect(4,2,2,16);
+      ctx.fillStyle=c1; ctx.fillRect(6,3,11,5);
+      ctx.fillStyle=c2; ctx.fillRect(6,8,11,5);
+      break;
+    case 'trophy':
+      ctx.fillStyle=c1; ctx.fillRect(7,3,6,8);
+      ctx.beginPath(); ctx.arc(6,5,3,Math.PI*0.5,Math.PI*1.5); ctx.fill();
+      ctx.beginPath(); ctx.arc(14,5,3,Math.PI*1.5,Math.PI*0.5); ctx.fill();
+      ctx.fillStyle=c2; ctx.fillRect(8,11,4,3); ctx.fillRect(5,15,10,2);
+      break;
+    case 'compass':
+      ctx.strokeStyle=c1; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(10,10,8,0,Math.PI*2); ctx.stroke();
+      ctx.fillStyle=c2;
+      ctx.beginPath(); ctx.moveTo(10,4); ctx.lineTo(12,10); ctx.lineTo(10,16); ctx.lineTo(8,10); ctx.closePath(); ctx.fill();
+      break;
+    case 'medal':
+      ctx.fillStyle=c2; ctx.fillRect(7,1,2,7); ctx.fillRect(11,1,2,7);
+      ctx.fillStyle=c1; ctx.beginPath(); ctx.arc(10,13,7,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(10,13,3,0,Math.PI*2); ctx.fill();
+      break;
+    case 'seal':
+      ctx.fillStyle=c1; ctx.beginPath(); ctx.arc(10,10,8,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle=c2; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(10,10,5,0,Math.PI*2); ctx.stroke();
+      break;
+    case 'coin':
+      ctx.fillStyle=c1; ctx.beginPath(); ctx.arc(10,10,8,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=c2; ctx.font='bold 11px monospace'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('€', 10, 11);
+      break;
+    case 'handshake':
+      ctx.fillStyle=c1; ctx.fillRect(2,9,7,4);
+      ctx.fillStyle=c2; ctx.fillRect(11,9,7,4);
+      ctx.fillStyle='#fff'; ctx.fillRect(8,8,4,6);
+      break;
+    case 'calendar':
+      ctx.fillStyle=c1; ctx.fillRect(2,4,16,13);
+      ctx.fillStyle=c2; ctx.fillRect(2,4,16,4);
+      ctx.fillStyle='#fff';
+      for(let i=0;i<3;i++)for(let j=0;j<3;j++) ctx.fillRect(4+i*5,10+j*2.5,3,1.5);
+      break;
+    case 'computer':
+      ctx.fillStyle=c1; ctx.fillRect(2,3,16,10);
+      ctx.fillStyle=c2; ctx.fillRect(3,4,14,8);
+      ctx.fillStyle=c1; ctx.fillRect(7,13,6,3); ctx.fillRect(4,16,12,1.5);
+      break;
+    case 'megaphone':
+      ctx.fillStyle=c1;
+      ctx.beginPath(); ctx.moveTo(2,9); ctx.lineTo(9,4); ctx.lineTo(9,16); ctx.lineTo(2,11); ctx.closePath(); ctx.fill();
+      ctx.fillStyle=c2; ctx.fillRect(9,7,8,5);
+      ctx.strokeStyle=c1; ctx.lineWidth=1.4;
+      ctx.beginPath(); ctx.arc(18,9.5,4,-0.8,0.8); ctx.stroke();
+      break;
+    case 'mic':
+      ctx.fillStyle=c1; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(7,2,6,10,3) : ctx.rect(7,2,6,10); ctx.fill();
+      ctx.strokeStyle=c2; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(10,10,5,0.2,Math.PI-0.2); ctx.stroke();
+      ctx.fillStyle=c2; ctx.fillRect(9,15,2,4); ctx.fillRect(6,18,8,1.5);
+      break;
+    case 'star':
+      ctx.fillStyle=c1;
+      ctx.beginPath();
+      for(let i=0;i<5;i++){
+        const a1 = -Math.PI/2 + i*(2*Math.PI/5);
+        const a2 = a1 + Math.PI/5;
+        ctx.lineTo(10+8*Math.cos(a1), 10+8*Math.sin(a1));
+        ctx.lineTo(10+3.2*Math.cos(a2), 10+3.2*Math.sin(a2));
+      }
+      ctx.closePath(); ctx.fill();
+      break;
+    case 'briefcase':
+      ctx.fillStyle=c2; ctx.fillRect(7,2,6,3);
+      ctx.fillStyle=c1; ctx.fillRect(2,6,16,11);
+      ctx.fillStyle=c2; ctx.fillRect(9,10,2,3);
+      break;
+    case 'frame':
+      ctx.strokeStyle=c1; ctx.lineWidth=3; ctx.strokeRect(2,2,16,16);
+      ctx.fillStyle=c2; ctx.fillRect(5,5,10,10);
+      break;
+    default:
+      ctx.fillStyle=c1; ctx.fillRect(3,3,14,14);
+  }
+}
+function makeIconTexture(scene, key, type, c1, c2){
+  if(scene.textures.exists(key)) return;
+  const tex = scene.textures.createCanvas(key, 20, 20);
+  drawIcon(tex.getContext(), type, c1, c2);
+  tex.refresh();
+}
+
+/* -------------------------------------------------------------------------
+   4. UTILITAIRES DE SCÈNE (sol, murs, portes)
+   ------------------------------------------------------------------------- */
+const W = 480, H = 320;
+const ROOM_BOUNDS = { left: 46, right: W-46, top: 96, bottom: H-34 };
+
+function buildFloor(scene, tint){
+  scene.add.grid(W/2, H/2, W, H, 24, 24, tint, 1, 0x000000, 0.05).setDepth(0);
+  const g = scene.add.graphics().setDepth(0);
+  g.fillStyle(0x000000, 0.05);
+  g.fillRect(0,0,W,ROOM_BOUNDS.top-4);
+  g.fillRect(0,ROOM_BOUNDS.bottom+4,W,H-ROOM_BOUNDS.bottom-4);
+}
+function buildWalls(scene, title){
+  const g = scene.add.graphics().setDepth(1);
+  g.fillStyle(0x4a2140, 1);
+  g.fillRect(0,0,W,60);
+  g.fillStyle(0x7fae8e, 1);
+  g.fillRect(0,60,W,4);
+  g.fillStyle(0x4a2140, 0.85);
+  g.fillRect(0,0,18,H);
+  g.fillRect(W-18,0,18,H);
+  g.fillStyle(0x4a2140, 0.85);
+  g.fillRect(0,H-16,W,16);
+
+  scene.add.text(W/2, 30, title.toUpperCase(), {
+    fontFamily:'"Press Start 2P"', fontSize:'13px', color:'#c3e4cf', letterSpacing:2,
+    stroke:'#2c1622', strokeThickness:3
+  }).setOrigin(0.5).setDepth(2);
+}
+function buildExitDoor(scene, label){
+  const g = scene.add.graphics().setDepth(2);
+  const dx = W/2, dy = H-16;
+  g.fillStyle(0x7fae8e,1); g.fillRect(dx-22, dy-10, 44, 14);
+  g.fillStyle(0x4a2140,1); g.fillRect(dx-16, dy-8, 32, 12);
+  scene.add.text(dx, dy-24, '⏷ ' + (label||'Sortie'), {
+    fontFamily:'"Press Start 2P"', fontSize:'8px', color:'#fffaf9', letterSpacing:1,
+    stroke:'#2c1622', strokeThickness:3
+  }).setOrigin(0.5).setDepth(2);
+  return new Phaser.Geom.Rectangle(dx-24, dy-16, 48, 20);
+}
+
+function createPlayer(scene, x, y){
+  const p = scene.add.sprite(x, y, 'player_front_0').setDepth(5);
+  p.dir = 'front'; p.frame2 = 0; p.moving = false; p.animTimer = 0;
+  return p;
+}
+function setPlayerTexture(p, dir, frame){
+  const map = { front:'player_front_', back:'player_back_', left:'player_side_', right:'player_side_' };
+  p.setTexture(map[dir] + frame);
+  p.setFlipX(dir === 'right');
+}
+
+function updatePlayerMovement(scene, p, delta){
+  if(dialogueActive){ p.moving=false; return; }
+  let vx=0, vy=0;
+  if(keys.up) vy -= 1;
+  if(keys.down) vy += 1;
+  if(keys.left) vx -= 1;
+  if(keys.right) vx += 1;
+  const moving = (vx!==0 || vy!==0);
+  if(moving){
+    const len = Math.hypot(vx,vy) || 1;
+    vx/=len; vy/=len;
+    const speed = 108;
+    p.x = Phaser.Math.Clamp(p.x + vx*speed*(delta/1000), ROOM_BOUNDS.left, ROOM_BOUNDS.right);
+    p.y = Phaser.Math.Clamp(p.y + vy*speed*(delta/1000), ROOM_BOUNDS.top, ROOM_BOUNDS.bottom);
+    if(Math.abs(vx) > Math.abs(vy)) p.dir = vx>0 ? 'right':'left';
+    else p.dir = vy>0 ? 'front':'back';
+    p.animTimer += delta;
+    if(p.animTimer > 160){ p.animTimer=0; p.frame2 = p.frame2 ? 0 : 1; }
+  } else {
+    p.frame2 = 0;
+  }
+  p.moving = moving;
+  setPlayerTexture(p, p.dir, p.frame2);
+}
+
+/* -------------------------------------------------------------------------
+   5. SCÈNES
+   ------------------------------------------------------------------------- */
+class PreloadScene extends Phaser.Scene{
+  constructor(){ super('Preload'); }
+  create(){
+    // palettes personnages
+    const playerPalette = { hair:'#2e1c14', skin:'#c98a5e', body:'#d9a7bc', accent:'#7fae8e', legs:'#4a2140', eye:'#2c1622' };
+    const candidatePalette = { hair:'#331f16', skin:'#cf9268', body:'#8fbfa0', accent:'#d9a7bc', legs:'#4a2140', eye:'#2c1622' };
+    ['front','back','left','right'].forEach(dir=>{
+      [0,1].forEach(fr=>{
+        makePersonTexture(this, 'player_'+ (dir==='right'?'side':dir) +'_'+fr, playerPalette, dir, fr);
+        makePersonTexture(this, 'candidate_'+ (dir==='right'?'side':dir) +'_'+fr, candidatePalette, dir, fr);
+      });
+    });
+    // icônes
+    const iconDefs = {
+      book:['#2c3e6b','#7fae8e'], cap:['#2c3e6b','#7fae8e'], scroll:['#e9dcb8','#4c7a5c'],
+      globe:['#b96f93','#34212f'], flag:['#b96f93','#7fae8e'], trophy:['#7fae8e','#4c7a5c'],
+      compass:['#34212f','#7fae8e'], medal:['#7fae8e','#4c7a5c'], seal:['#b96f93','#7fae8e'],
+      coin:['#7fae8e','#4c7a5c'], handshake:['#b96f93','#7fae8e'], calendar:['#b96f93','#34212f'],
+      computer:['#34212f','#f2b8d4'], megaphone:['#b96f93','#34212f'], mic:['#34212f','#7fae8e'],
+      star:['#7fae8e','#7fae8e'], briefcase:['#6f4a2c','#7fae8e'], frame:['#4c7a5c','#fbdcec']
+    };
+    Object.keys(iconDefs).forEach(k=> makeIconTexture(this, 'icon_'+k, k, iconDefs[k][0], iconDefs[k][1]));
+
+    this.scene.start('DeskIntro');
+  }
+}
+
+class DeskIntroScene extends Phaser.Scene{
+  constructor(){ super('DeskIntro'); }
+  create(){
+    this.cameras.main.setBackgroundColor('#2b2f45');
+    // bureau
+    const g = this.add.graphics();
+    g.fillStyle(0x4a3a2c,1); g.fillRect(40, 190, W-80, 90);
+    g.fillStyle(0x3a2d22,1); g.fillRect(40, 190, W-80, 10);
+    // lampe
+    g.fillStyle(0x7fae8e,1); g.fillCircle(90,120,3);
+    g.fillTriangle(90,123, 70,170, 110,170);
+    g.lineStyle(3,0x4c7a5c,1); g.lineBetween(90,80,90,120);
+
+    this.add.text(W/2, 60, 'DOSSIER 577', {
+      fontFamily:'"Press Start 2P"', fontSize:'14px', color:'#c3e4cf'
+    }).setOrigin(0.5);
+
+    // enveloppe
+    const env = this.add.graphics();
+    const ex=W/2, ey=210;
+    env.fillStyle(0xf1e9d2,1); env.fillRect(ex-60,ey-38,120,76);
+    env.lineStyle(2,0x4c7a5c,1);
+    env.strokePoints([{x:ex-60,y:ey-38},{x:ex,y:ey+4},{x:ex+60,y:ey-38}], false);
+    env.strokeRect(ex-60,ey-38,120,76);
+    env.fillStyle(0xc9204b,1); // petit sceau rouge discret -> plutôt or institutionnel
+    env.fillStyle(0x7fae8e,1); env.fillCircle(ex, ey-6, 9);
+
+    this.add.text(ex, ey+16, 'Dossier 577', {
+      fontFamily:'"VT323"', fontSize:'20px', color:'#3a2d22'
+    }).setOrigin(0.5);
+
+    const hint = this.add.text(W/2, H-30, "Cliquez sur l'enveloppe pour l'ouvrir", {
+      fontFamily:'"VT323"', fontSize:'18px', color:'#fbdcec'
+    }).setOrigin(0.5);
+    this.tweens.add({ targets: hint, alpha:{from:1,to:0.3}, duration:800, yoyo:true, repeat:-1 });
+
+    const zone = this.add.zone(ex, ey, 140, 96).setInteractive({ useHandCursor:true });
+    zone.on('pointerdown', ()=>{
+      ensureAudio();
+      playChime();
+      startAmbient();
+      this.cameras.main.fadeOut(500, 0,0,0);
+      this.cameras.main.once('camerafadeoutcomplete', ()=> this.scene.start('Logo'));
+    });
+  }
+}
+
+class LogoScene extends Phaser.Scene{
+  constructor(){ super('Logo'); }
+  create(){
+    this.cameras.main.setBackgroundColor('#2c1622');
+    const title = this.add.text(W/2, H/2-30, 'LE BUREAU 577', {
+      fontFamily:'"Press Start 2P"', fontSize:'22px', color:'#c3e4cf'
+    }).setOrigin(0.5).setAlpha(0).setScale(0.7);
+    const under = this.add.rectangle(W/2, H/2+2, 0, 3, 0x7fae8e).setOrigin(0.5);
+    const sub = this.add.text(W/2, H/2+30, 'Un dossier de candidature à vivre', {
+      fontFamily:'"VT323"', fontSize:'18px', color:'#f2b8d4'
+    }).setOrigin(0.5).setAlpha(0);
+
+    this.tweens.add({ targets: title, alpha:1, scale:1, duration:700, ease:'Back.Out' });
+    this.tweens.add({ targets: under, width:260, duration:500, delay:500 });
+    this.tweens.add({ targets: sub, alpha:1, duration:600, delay:800 });
+
+    const prompt = this.add.text(W/2, H-40, 'Appuyez pour commencer', {
+      fontFamily:'"VT323"', fontSize:'18px', color:'#fffaf9'
+    }).setOrigin(0.5).setAlpha(0);
+    this.tweens.add({ targets: prompt, alpha:{from:0.2,to:1}, duration:750, delay:1300, yoyo:true, repeat:-1 });
+
+    this.time.delayedCall(600, ()=>{ ensureAudio(); playJingle(); });
+
+    this.input.once('pointerdown', ()=> this.goHub());
+    const kb = this.input.keyboard.once('keydown', ()=> this.goHub());
+  }
+  goHub(){
+    this.cameras.main.fadeOut(500,0,0,0);
+    this.cameras.main.once('camerafadeoutcomplete', ()=> this.scene.start('Hub'));
+  }
+}
+
+class HubScene extends Phaser.Scene{
+  constructor(){ super('Hub'); }
+  create(){
+    this.cameras.main.fadeIn(400,0,0,0);
+    buildFloor(this, 0xfbdcec);
+    buildWalls(this, 'Hall Principal');
+
+    this.doors = [];
+    const doorSpecs = [
+      { key:'etudes', x:110, y:208, label:'1. Études' },
+      { key:'experience', x:240, y:208, label:'2. Expérience' },
+      { key:'projets', x:370, y:208, label:'3. Concrétisation' },
+    ];
+    doorSpecs.forEach(d=> this.buildRoomDoor(d));
+
+    // Bureau du Président (porte finale) — approche + A, comme les autres portes
+    this.finalDoorRect = new Phaser.Geom.Rectangle(W/2-28, 84, 56, 34);
+    this.finalDoorPoint = { x:W/2, y:101 };
+    this.finalGfx = this.add.graphics().setDepth(2);
+    this.finalLabel = this.add.text(W/2, 120, 'Bureau du Président', {
+      fontFamily:'"Press Start 2P"', fontSize:'7px', color:'#8a7a86',
+      letterSpacing:0.5, stroke:'#2c1622', strokeThickness:3
+    }).setOrigin(0.5,0).setDepth(2);
+    this.redrawFinalDoor();
+
+    // PNJ candidate
+    this.npc = this.add.sprite(W/2, 170, 'candidate_front_0').setDepth(4);
+    this.tweens.add({ targets:this.npc, y:'+=4', duration:900, yoyo:true, repeat:-1, ease:'Sine.InOut' });
+    this.npcZone = new Phaser.Geom.Circle(this.npc.x, this.npc.y, 34);
+
+    // joueur
+    this.player = createPlayer(this, W/2, H-70);
+
+    this.hintShown = false;
+
+    const onInteract = ()=>{
+      if(this.scene.isSleeping() || !this.scene.isActive()) return;
+      this.tryInteract();
+    };
+    gameEvents.on('interact', onInteract);
+    this.events.on('shutdown', ()=> gameEvents.off('interact', onInteract));
+
+    if(!this.registry.get('metCandidate')){
+      this.time.delayedCall(300, ()=>{
+        openDialogue(N(), [
+          "Bienvenue.",
+          "Plutôt que de vous faire lire mon CV, j'ai préféré vous le faire vivre.",
+          "Ce Bureau 577 rassemble ce qui compte le plus dans mon parcours : le terrain, la rigueur, et une conviction obstinée pour l'intérêt général.",
+          "Chaque niveau raconte une étape. Approchez-vous d'une porte et appuyez sur A pour entrer — prenez le temps que vous voulez, je serai là pour vous guider.",
+          "Quand vous aurez tout exploré, revenez me voir : une dernière porte s'ouvrira, tout au fond du hall."
+        ]);
+        this.registry.set('metCandidate', true);
+      });
+    }
+  }
+  redrawFinalDoor(){
+    const complete = completedRoomsCount() >= ROOM_ORDER.length;
+    this.finalGfx.clear();
+    const r = this.finalDoorRect;
+    this.finalGfx.fillStyle(complete ? 0x7fae8e : 0x3a4568, 1);
+    this.finalGfx.fillRect(r.x, r.y, r.width, r.height);
+    this.finalGfx.fillStyle(0x4a2140,1);
+    this.finalGfx.fillRect(r.x+6, r.y+4, r.width-12, r.height-6);
+    this.finalLabel.setColor(complete ? '#c3e4cf' : '#8a7a86');
+    this.finalLabel.setText(complete ? '✦ Bureau du Président ✦' : 'Bureau du Président (verrouillé)');
+    if(complete && !this.sparkleAdded){
+      this.sparkleAdded = true;
+      this.tweens.add({ targets:this.finalGfx, alpha:{from:0.7,to:1}, duration:700, yoyo:true, repeat:-1 });
+    }
+  }
+  buildRoomDoor(d){
+    const complete = isRoomComplete(d.key);
+    const g = this.add.graphics().setDepth(2);
+    g.fillStyle(complete ? 0x7fae8e : 0xb96f93, 1);
+    g.fillRoundedRect(d.x-24, d.y-16, 48, 30, 4);
+    g.fillStyle(0x4a2140,1);
+    g.fillRoundedRect(d.x-18, d.y-10, 36, 24, 3);
+    const icon = this.add.image(d.x, d.y+1, 'icon_' + (ROOMS[d.key].hotspots[0].icon)).setDepth(3).setScale(0.9);
+    this.add.text(d.x, d.y+22, d.label + (complete?' ✓':''), {
+      fontFamily:'"Press Start 2P"', fontSize:'6.5px', color: complete? '#c3e4cf':'#fdeef7',
+      letterSpacing:0.5, stroke:'#2c1622', strokeThickness:3
+    }).setOrigin(0.5,0).setDepth(3);
+    this.doors.push({ key:d.key, x:d.x, y:d.y-2 });
+  }
+  nearestDoor(){
+    let best=null, bestD=48;
+    for(const d of this.doors){
+      const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, d.x, d.y);
+      if(dist < bestD){ bestD = dist; best = d; }
+    }
+    const allDone = completedRoomsCount() >= ROOM_ORDER.length;
+    if(allDone){
+      const distF = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.finalDoorPoint.x, this.finalDoorPoint.y);
+      if(distF < bestD){ bestD = distF; best = { key:'__final__', x:this.finalDoorPoint.x, y:this.finalDoorPoint.y }; }
+    }
+    return best;
+  }
+  tryInteract(){
+    if(Phaser.Geom.Circle.ContainsPoint(this.npcZone, this.player)){
+      const allDone = completedRoomsCount() >= ROOM_ORDER.length;
+      if(allDone){
+        openDialogue(N(), [
+          "Bravo, vous avez parcouru tous ces niveaux — c'est top, vraiment !",
+          "Il ne vous reste plus qu'une chose à faire : passez la porte tout au fond du hall, mon Bureau vous y attend."
+        ]);
+      } else {
+        openDialogue(N(), [
+          "N'hésitez pas à visiter les trois niveaux : Études, Expérience, puis Concrétisation de mes projets.",
+          "Approchez-vous d'une porte et appuyez sur A pour entrer. Chacune raconte une facette différente de mon parcours."
+        ]);
+      }
+      return;
+    }
+    const d = this.nearestDoor();
+    if(d){
+      if(d.key === '__final__'){
+        ensureAudio(); playDoor();
+        this.cameras.main.fadeOut(450,0,0,0);
+        this.cameras.main.once('camerafadeoutcomplete', ()=> this.scene.start('Ending'));
+      } else {
+        this.enterRoom(d.key);
+      }
+    }
+  }
+  update(time, delta){
+    updatePlayerMovement(this, this.player, delta);
+    this.npcZone.x = this.npc.x; this.npcZone.y = this.npc.y;
+
+    const nearNpc = Phaser.Geom.Circle.ContainsPoint(this.npcZone, this.player);
+    const d = nearNpc ? null : this.nearestDoor();
+    if(dialogueActive){ hideInteractHint(); return; }
+    if(nearNpc){
+      showInteractHint(this, this.npc.x, this.npc.y-30);
+    } else if(d){
+      showInteractHint(this, d.x, d.y-22);
+    } else {
+      hideInteractHint();
+    }
+  }
+  enterRoom(key){
+    ensureAudio(); playDoor();
+    this.cameras.main.fadeOut(350,0,0,0);
+    this.cameras.main.once('camerafadeoutcomplete', ()=>{
+      this.scene.start('Room', { roomKey:key });
+    });
+  }
+}
+
+class RoomScene extends Phaser.Scene{
+  constructor(){ super('Room'); }
+  init(data){ this.roomKey = data.roomKey; }
+  create(){
+    const cfg = ROOMS[this.roomKey];
+    this.cameras.main.fadeIn(350,0,0,0);
+    buildFloor(this, cfg.floorTint || 0xfbdcec);
+    buildWalls(this, cfg.title);
+    buildExitDoor(this, 'Retour au Hall');
+    this.exitPoint = { x: W/2, y: H-24 };
+
+    this.player = createPlayer(this, W/2, H-70);
+
+    this.hotspotSprites = cfg.hotspots.map((h, idx)=>{
+      const s = this.add.image(h.x, h.y, 'icon_' + h.icon).setDepth(4).setScale(1.3);
+      s.hotData = h;
+      this.tweens.add({ targets:s, y:h.y-4, duration:800+Math.random()*300, yoyo:true, repeat:-1, ease:'Sine.InOut' });
+      this.add.text(h.x, h.y+16, h.label, {
+        fontFamily:'"Press Start 2P"', fontSize:'6px', color:'#fffaf9',
+        letterSpacing:0.5, stroke:'#2c1622', strokeThickness:3,
+        align:'center', wordWrap:{ width:120, useAdvancedWrap:true }
+      }).setOrigin(0.5,0).setDepth(4);
+
+      // pastille de cheminement : indique l'ordre suggéré de visite
+      const doneAlready = roomState[this.roomKey].done.has(h.id);
+      const badgeBg = this.add.circle(h.x-15, h.y-15, 9, doneAlready ? 0x7fae8e : 0xb96f93).setDepth(6);
+      badgeBg.setStrokeStyle(2, 0x2c1622);
+      const badgeTxt = this.add.text(h.x-15, h.y-15, doneAlready ? '✓' : String(idx+1), {
+        fontFamily:'"Press Start 2P"', fontSize:'8px', color:'#fffaf9'
+      }).setOrigin(0.5).setDepth(7);
+      s.__badgeBg = badgeBg; s.__badgeTxt = badgeTxt;
+      if(doneAlready){ s.__marked = true; }
+      return s;
+    });
+
+    const onInteract = ()=> this.tryInteract();
+    gameEvents.on('interact', onInteract);
+    this.events.on('shutdown', ()=> gameEvents.off('interact', onInteract));
+
+    if(cfg.intro){
+      this.time.delayedCall(250, ()=>{
+        openDialogue(N(), [cfg.intro]);
+      });
+    }
+  }
+  nearestHotspot(){
+    let best=null, bestD=48;
+    for(const s of this.hotspotSprites){
+      const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, s.x, s.y);
+      if(d < bestD){ bestD = d; best = s; }
+    }
+    return best;
+  }
+  exitDistance(){
+    return Phaser.Math.Distance.Between(this.player.x, this.player.y, this.exitPoint.x, this.exitPoint.y);
+  }
+  nearExit(){ return this.exitDistance() < 54; }
+  /* Choisit ce qui est réellement le plus proche entre un point d'intérêt et
+     la sortie, pour qu'un point d'intérêt trop proche de la porte ne puisse
+     plus jamais bloquer la sortie du joueur. */
+  nearestTarget(){
+    let best=null, bestD=48;
+    for(const s of this.hotspotSprites){
+      const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, s.x, s.y);
+      if(d < bestD){ bestD = d; best = { type:'hotspot', sprite:s }; }
+    }
+    const dExit = this.exitDistance();
+    if(dExit < 54 && dExit < bestD){ best = { type:'exit' }; }
+    return best;
+  }
+  tryInteract(){
+    const target = this.nearestTarget();
+    if(!target) return;
+    if(target.type === 'hotspot'){
+      const s = target.sprite;
+      const h = s.hotData;
+      openDialogue(N(), h.lines.slice(), ()=>{
+        markHotspotDone(this.roomKey, h.id);
+        if(!s.__marked){
+          s.__marked = true;
+          if(s.__badgeBg) s.__badgeBg.setFillStyle(0x7fae8e);
+          if(s.__badgeTxt) s.__badgeTxt.setText('✓');
+        }
+        if(typeof h.onDone === 'function') h.onDone();
+      });
+      return;
+    }
+    ensureAudio(); playDoor();
+    this.cameras.main.fadeOut(300,0,0,0);
+    this.cameras.main.once('camerafadeoutcomplete', ()=> this.scene.start('Hub'));
+  }
+  update(time, delta){
+    updatePlayerMovement(this, this.player, delta);
+
+    if(dialogueActive){ hideInteractHint(); return; }
+
+    const target = this.nearestTarget();
+    if(target && target.type === 'hotspot'){ showInteractHint(this, target.sprite.x, target.sprite.y-24); }
+    else if(target && target.type === 'exit'){ showInteractHint(this, this.exitPoint.x, this.exitPoint.y-14); }
+    else { hideInteractHint(); }
+  }
+}
+
+class EndingScene extends Phaser.Scene{
+  constructor(){ super('Ending'); }
+  create(){
+    this.cameras.main.fadeIn(500,0,0,0);
+    buildFloor(this, 0xf1e6c8);
+    buildWalls(this, 'Bureau du Président');
+
+    // grand bureau
+    const g = this.add.graphics().setDepth(3);
+    g.fillStyle(0x4a3a2c,1); g.fillRect(W/2-90, 190, 180, 60);
+    g.fillStyle(0x7fae8e,1); g.fillRect(W/2-90, 190, 180, 6);
+
+    this.npc = this.add.sprite(W/2, 165, 'candidate_front_0').setDepth(4).setScale(1.15);
+    this.tweens.add({ targets:this.npc, y:'+=4', duration:900, yoyo:true, repeat:-1, ease:'Sine.InOut' });
+
+    ensureAudio();
+    stopAmbient();
+    playVictory();
+    this.time.delayedCall(1300, ()=> playOutro());
+    this.time.delayedCall(4700, ()=> startAmbient());
+
+    this.time.delayedCall(400, ()=>{
+      openDialogue(N(), [
+        "Bravo, vous avez parcouru tous ces niveaux — c'est vraiment top !",
+        "Merci d'avoir pris le temps de me découvrir autrement qu'à travers une page de CV.",
+        "Ce que vous avez vu ici, c'est ce qui me donne envie, chaque jour, de m'investir pour l'intérêt général.",
+        "Je vous le dis simplement : ce stage compte énormément pour moi. C'est ce qu'il me faut pour valider ma troisième année, et j'ai vraiment envie de le faire dans un domaine que j'apprécie.",
+        "J'espère sincèrement que ma candidature sera retenue, et pouvoir continuer cette histoire à vos côtés.",
+        "Avant de partir : avez-vous des questions ? Et qu'avez-vous pensé de cette interface ? N'hésitez pas à me le dire juste en dessous."
+      ], ()=>{ showEndingPanel(); });
+    });
+  }
+}
+
+/* -------------------------------------------------------------------------
+   6. HINT D'INTERACTION (positionnement écran depuis coord. monde)
+   ------------------------------------------------------------------------- */
+let hintScene = null;
+function showInteractHint(scene, worldX, worldY){
+  hintScene = scene;
+  const rect = els.screenInner.getBoundingClientRect();
+  const scaleX = rect.width / W, scaleY = rect.height / H;
+  els.interactHint.style.left = (worldX*scaleX) + 'px';
+  els.interactHint.style.top = (worldY*scaleY) + 'px';
+  els.interactHint.style.display = 'block';
+}
+function hideInteractHint(){ els.interactHint.style.display = 'none'; }
+
+/* -------------------------------------------------------------------------
+   7. CONFIG PHASER & LANCEMENT
+   ------------------------------------------------------------------------- */
+const gameConfig = {
+  type: Phaser.AUTO,
+  width: W,
+  height: H,
+  parent: 'game-container',
+  backgroundColor: '#2c1622',
+  pixelArt: true,
+  roundPixels: true,
+  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+  scene: [PreloadScene, DeskIntroScene, LogoScene, HubScene, RoomScene, EndingScene],
+};
+window.__game = new Phaser.Game(gameConfig);
+
+setTimeout(()=>{ const pf = document.getElementById('power-flicker'); if(pf) pf.remove(); }, 900);
+</script>
+</body>
+</html>
